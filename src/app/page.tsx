@@ -168,15 +168,20 @@ export default function App() {
 
   const duplicateRow = (tab: InventoryCategory, row: InventoryRow) => {
     const newRow: InventoryRow = { 
-      ...row, 
-      id: Date.now() 
+      id: Date.now(),
+      col1: row.col1, // Keep the entity (person/institution)
+      col2: '',       // Clear everything else for a fresh entry for the same person
+      col3: '',
+      col4: '',
+      col5: '',
+      fifthStepNotes: ''
     };
     setData(prev => ({
       ...prev,
       [tab]: [...prev[tab], newRow]
     }));
     toast({
-      description: "Row duplicated. Useful for adding multiple causes for the same person.",
+      description: `Added another entry for "${row.col1 || 'Unspecified'}".`,
     });
   };
 
@@ -553,7 +558,7 @@ export default function App() {
                                       <Rows className="w-4 h-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Duplicate Row</TooltipContent>
+                                  <TooltipContent>Add another cause for this entity</TooltipContent>
                                 </Tooltip>
 
                                 <Tooltip>
