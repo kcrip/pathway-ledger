@@ -29,7 +29,7 @@ export function AIReflectionDialog({ category, text, isOpen, onClose }: AIReflec
     setLoading(true);
     try {
       const result = await generateReflectivePrompts({
-        entryCategory: category === ' resentments' ? 'resentments' : (category === 'fears' ? 'fears' : 'harms'),
+        entryCategory: category === 'resentments' ? 'resentments' : (category === 'fears' ? 'fears' : 'harms'),
         entryText: text
       });
       setPrompts(result.clarifyingPrompts);

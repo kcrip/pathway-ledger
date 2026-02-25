@@ -37,12 +37,22 @@ Based on the provided inventory data:
 2. Identify fears they need to ask for removal of (based on Fears and "The Spiritual Remedy").
 3. Identify areas where they need strength to make amends (based on Harms).
 
-Generate a "Spiritual Prayer & Meditation List". Use a compassionate, non-judgmental, and traditional recovery tone (spiritually inclusive). 
+Generate a "Spiritual Prayer & Meditation List". 
+
+CRITICAL SPIRITUAL GUIDELINE:
+Structure the prayers around universal principles of spiritual alignment:
+- Recognizing an Eternal Source or Higher Power.
+- Seeking to align personal will with a Divine/Higher Will ("Thy will be done").
+- Asking for daily strength, guidance, and "bread" for the current 24-hour period.
+- Focusing on the release of resentment through forgiveness of others as a prerequisite for personal spiritual progress ("Forgive as we forgive").
+- Asking for protection from the pitfalls of ego, pride, and old character defects ("Deliverance from temptation").
+
+DO NOT explicitly name any specific religious figures (e.g., Jesus, Buddha, etc.). Use language that is inclusive of any "God of one's understanding." Use a compassionate, non-judgmental, and traditional recovery tone.
 
 Format the output beautifully in Markdown with sections like:
-- "Prayers for Resentment"
-- "Relief from Fear"
-- "Daily Petitions for Character"
+- "Prayers for Resentment & Release"
+- "Daily Petitions for Strength"
+- "Meditations on Character & Change"
 
 Inventory Data:
 {{{inventory}}}`,
