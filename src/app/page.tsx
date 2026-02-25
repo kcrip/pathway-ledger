@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   Copy, 
@@ -13,8 +14,11 @@ import {
   Save,
   LifeBuoy,
   ClipboardPaste,
-  FileDown,
-  Rows
+  Rows,
+  LayoutDashboard,
+  Search,
+  ChevronRight,
+  User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -39,17 +43,23 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  TooltipContent
 } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+type TabValue = InventoryCategory | 'summary';
 
 export default function App() {
   const [data, setData] = useState<InventoryData>(INITIAL_DATA);
-  const [activeTab, setActiveTab] = useState<InventoryCategory>('resentments');
+  const [activeTab, setActiveTab] = useState<TabValue>('resentments');
   const [isMounted, setIsMounted] = useState(false);
   const [isPasteDialogOpen, setIsPasteDialogOpen] = useState(false);
   const [pastedContent, setPastedContent] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [reflectionState, setReflectionState] = useState<{
     isOpen: boolean;
     text: string;
@@ -80,6 +90,43 @@ export default function App() {
       localStorage.setItem('pathway_ledger_data', JSON.stringify(data));
     }
   }, [data, isMounted]);
+
+  // Grouped data for Summary View
+  const groupedData = useMemo(() => {
+    const map = new Map<string, { 
+      resentments: InventoryRow[], 
+      fears: InventoryRow[], 
+      harms: InventoryRow[] 
+    }>();
+
+    const addToMap = (category: InventoryCategory, rows: InventoryRow[]) => {
+      rows.forEach(row => {
+        const entity = (row.col1 || 'Unspecified').trim();
+        if (!map.has(entity)) {
+          map.set(entity, { resentments: [], fears: [], harms: [] });
+        }
+        map.get(entity)![category].push(row);
+      });
+    };
+
+    addToMap('resentments', data.resentments);
+    addToMap('fears', data.fears);
+    addToMap('harms', data.harms);
+
+    return Array.from(map.entries())
+      .map(([name, counts]) => ({ name, ...counts }))
+      .sort((a, b) => {
+        const totalA = a.resentments.length + a.fears.length + a.harms.length;
+        const totalB = b.resentments.length + b.fears.length + b.harms.length;
+        return totalB - totalA;
+      });
+  }, [data]);
+
+  const filteredSummary = useMemo(() => {
+    if (!searchQuery.trim()) return groupedData;
+    const lowerQuery = searchQuery.toLowerCase();
+    return groupedData.filter(e => e.name.toLowerCase().includes(lowerQuery));
+  }, [groupedData, searchQuery]);
 
   const updateCell = (tab: InventoryCategory, id: number, field: string, value: string) => {
     setData(prev => ({
@@ -119,8 +166,9 @@ export default function App() {
   };
 
   const handleCopyTSV = async () => {
-    const tabData = data[activeTab];
-    const tabCols = INVENTORY_CONFIG[activeTab].cols;
+    const cat = activeTab === 'summary' ? 'resentments' : activeTab;
+    const tabData = data[cat as InventoryCategory];
+    const tabCols = INVENTORY_CONFIG[cat as InventoryCategory].cols;
     
     const headerRow = tabCols.map(c => c.header).join('\t');
     const dataRows = tabData.map(row => {
@@ -137,114 +185,11 @@ export default function App() {
       await navigator.clipboard.writeText(tsv);
       toast({
         title: "Copied!",
-        description: "Tab-separated data ready to paste into Google Sheets (Cell A1).",
+        description: `Current ${activeTab} data ready to paste into Sheets.`,
       });
     } catch (err) {
       console.error('Failed to copy', err);
     }
-  };
-
-  const handleExportCSV = () => {
-    const tabData = data[activeTab];
-    const tabCols = INVENTORY_CONFIG[activeTab].cols;
-    
-    const headerRow = tabCols.map(c => `"${c.header}"`).join(',');
-    const dataRows = tabData.map(row => {
-      return tabCols.map(c => {
-        let val = (row[c.key as keyof InventoryRow] || '') as string;
-        val = val.replace(/"/g, '""');
-        return `"${val}"`;
-      }).join(',');
-    }).join('\n');
-    
-    const csv = `\ufeff${headerRow}\n${dataRows}`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Pathway_Ledger_${activeTab}_Inventory.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const lines = content.split(/\r?\n/).filter(line => line.trim());
-      
-      const parseCSVLine = (line: string) => {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"') {
-            if (inQuotes && line[i+1] === '"') {
-              current += '"';
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (char === ',' && !inQuotes) {
-            result.push(current);
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        result.push(current);
-        return result;
-      };
-
-      const rows = lines.slice(1).map((line, idx) => {
-        const values = parseCSVLine(line);
-        const row: InventoryRow = { id: Date.now() + idx };
-        INVENTORY_CONFIG[activeTab].cols.forEach((col, i) => {
-          row[col.key as keyof InventoryRow] = values[i] || '';
-        });
-        return row;
-      });
-
-      setData(prev => ({
-        ...prev,
-        [activeTab]: [...prev[activeTab], ...rows]
-      }));
-      
-      toast({ title: "Import Successful", description: `Added ${rows.length} rows to ${activeTab}.` });
-      event.target.value = '';
-    };
-    reader.readAsText(file);
-  };
-
-  const handlePasteImport = () => {
-    if (!pastedContent.trim()) return;
-
-    const lines = pastedContent.split(/\r?\n/).filter(line => line.trim());
-    const isTSV = pastedContent.includes('\t');
-    const separator = isTSV ? '\t' : ',';
-
-    const rows = lines.map((line, idx) => {
-      const values = line.split(separator).map(v => v.trim().replace(/^"(.*)"$/, '$1'));
-      const row: InventoryRow = { id: Date.now() + idx };
-      INVENTORY_CONFIG[activeTab].cols.forEach((col, i) => {
-        row[col.key as keyof InventoryRow] = values[i] || '';
-      });
-      return row;
-    });
-
-    setData(prev => ({
-      ...prev,
-      [activeTab]: [...prev[activeTab], ...rows]
-    }));
-
-    toast({ title: "Pasted Data Imported", description: `Added ${rows.length} rows to ${activeTab}.` });
-    setPastedContent('');
-    setIsPasteDialogOpen(false);
   };
 
   const handleExportBackup = () => {
@@ -274,10 +219,33 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  if (!isMounted) return null;
+  const handlePasteImport = () => {
+    if (!pastedContent.trim() || activeTab === 'summary') return;
 
-  const currentConfig = INVENTORY_CONFIG[activeTab];
-  const currentData = data[activeTab];
+    const lines = pastedContent.split(/\r?\n/).filter(line => line.trim());
+    const isTSV = pastedContent.includes('\t');
+    const separator = isTSV ? '\t' : ',';
+
+    const rows = lines.map((line, idx) => {
+      const values = line.split(separator).map(v => v.trim().replace(/^"(.*)"$/, '$1'));
+      const row: InventoryRow = { id: Date.now() + idx };
+      INVENTORY_CONFIG[activeTab as InventoryCategory].cols.forEach((col, i) => {
+        row[col.key as keyof InventoryRow] = values[i] || '';
+      });
+      return row;
+    });
+
+    setData(prev => ({
+      ...prev,
+      [activeTab]: [...prev[activeTab as InventoryCategory], ...rows]
+    }));
+
+    toast({ title: "Pasted Data Imported", description: `Added ${rows.length} rows to ${activeTab}.` });
+    setPastedContent('');
+    setIsPasteDialogOpen(false);
+  };
+
+  if (!isMounted) return null;
 
   return (
     <TooltipProvider>
@@ -322,6 +290,7 @@ export default function App() {
                 variant="secondary"
                 onClick={() => setIsPasteDialogOpen(true)}
                 className="gap-2 shadow-sm border border-slate-200"
+                disabled={activeTab === 'summary'}
               >
                 <ClipboardPaste className="w-4 h-4" />
                 Paste Data
@@ -329,6 +298,7 @@ export default function App() {
               <Button 
                 onClick={handleCopyTSV}
                 className="gap-2 shadow-sm"
+                disabled={activeTab === 'summary'}
               >
                 <Copy className="w-4 h-4" />
                 Copy for Sheets
@@ -336,7 +306,7 @@ export default function App() {
             </div>
           </header>
 
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as InventoryCategory)} className="space-y-6">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <TabsList className="bg-slate-200/50 p-1.5 h-auto rounded-2xl border border-slate-200/50">
                 <TabsTrigger value="resentments" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
@@ -348,6 +318,10 @@ export default function App() {
                 <TabsTrigger value="harms" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
                   Harms
                 </TabsTrigger>
+                <TabsTrigger value="summary" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all gap-2">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Entity Summary
+                </TabsTrigger>
               </TabsList>
 
               <div className="flex items-center gap-2 px-4 py-2 bg-blue-50/50 border border-blue-100 rounded-xl">
@@ -356,123 +330,195 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm border border-blue-100/50 rounded-2xl p-5 flex gap-4 items-start shadow-sm">
-              <div className="bg-blue-100/50 p-2 rounded-lg">
-                <Info className="w-5 h-5 text-primary" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <p className="text-slate-700 text-sm leading-relaxed font-medium">
-                  {currentConfig.description}
-                </p>
-                <div className="flex gap-4 pt-1">
-                  <button onClick={handleExportCSV} className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline">
-                    Export {activeTab} CSV
-                  </button>
-                  <button onClick={() => document.getElementById('import-csv')?.click()} className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline">
-                    Import {activeTab} CSV
-                    <input id="import-csv" type="file" className="hidden" accept=".csv" onChange={handleImportCSV} />
-                  </button>
+            <TabsContent value="summary" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="bg-white/80 backdrop-blur-sm border border-blue-100/50 rounded-2xl p-5 flex flex-col md:flex-row gap-6 items-center shadow-sm">
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">Inventory Visualization</h3>
+                  <p className="text-slate-500 text-sm">Collated view of all entities across your worksheet to help you see patterns and focus your work.</p>
+                </div>
+                <div className="relative w-full md:w-80">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input 
+                    placeholder="Search people/institutions..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-white border-slate-200 rounded-xl focus:ring-primary/20"
+                  />
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden flex flex-col transition-all">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1000px]">
-                  <thead>
-                    <tr className="bg-slate-50/50 border-b border-slate-200">
-                      {currentConfig.cols.map((col) => (
-                        <th key={col.key} className={`px-6 py-4 font-bold text-slate-800 text-[13px] uppercase tracking-wider border-r border-slate-200/50 last:border-r-0 ${col.width}`}>
-                          {col.header}
-                        </th>
-                      ))}
-                      <th className="px-6 py-4 font-bold text-slate-800 text-[13px] uppercase tracking-wider w-36 text-center">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {currentData.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/30 group transition-colors">
-                        {currentConfig.cols.map((col) => (
-                          <td key={col.key} className="p-0 border-r border-slate-100/50 last:border-r-0 align-top">
-                            <textarea
-                              value={(row[col.key as keyof InventoryRow] || '') as string}
-                              onChange={(e) => updateCell(activeTab, row.id, col.key, e.target.value)}
-                              placeholder={col.placeholder}
-                              className="w-full min-h-[140px] p-5 bg-transparent resize-y outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5 text-sm text-slate-700 placeholder:text-slate-400 font-medium leading-relaxed transition-all"
-                            />
-                          </td>
-                        ))}
-                        <td className="px-4 py-6 align-top">
-                          <div className="flex items-center justify-center gap-1">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    const combinedText = currentConfig.cols
-                                      .map(c => row[c.key as keyof InventoryRow])
-                                      .filter(Boolean)
-                                      .join(' ');
-                                    setReflectionState({ isOpen: true, text: combinedText, category: activeTab });
-                                  }}
-                                  className="text-primary hover:text-white hover:bg-primary rounded-lg"
-                                  disabled={!currentConfig.cols.some(c => row[c.key as keyof InventoryRow])}
-                                >
-                                  <Sparkles className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>AI Reflection</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => duplicateRow(activeTab, row)}
-                                  className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                                >
-                                  <Rows className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Duplicate (Add another cause for this person)</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deleteRow(activeTab, row.id)}
-                                  className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete Row</TooltipContent>
-                            </Tooltip>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredSummary.length > 0 ? (
+                  filteredSummary.map((entity) => (
+                    <Card key={entity.name} className="border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                      <CardHeader className="bg-slate-50/50 border-b border-slate-100 flex flex-row items-center justify-between space-y-0 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-white p-2 rounded-lg border border-slate-200 text-slate-400 group-hover:text-primary transition-colors">
+                            <User className="w-4 h-4" />
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <CardTitle className="text-base font-bold text-slate-800 line-clamp-1">
+                            {entity.name}
+                          </CardTitle>
+                        </div>
+                        <Badge variant="outline" className="bg-white text-slate-500 font-bold">
+                          {entity.resentments.length + entity.fears.length + entity.harms.length} Total
+                        </Badge>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-4">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center p-2 rounded-xl bg-red-50/50 border border-red-100">
+                            <div className="text-xs font-bold text-red-600 uppercase tracking-tighter mb-1">Resent</div>
+                            <div className="text-lg font-black text-red-700">{entity.resentments.length}</div>
+                          </div>
+                          <div className="text-center p-2 rounded-xl bg-orange-50/50 border border-orange-100">
+                            <div className="text-xs font-bold text-orange-600 uppercase tracking-tighter mb-1">Fears</div>
+                            <div className="text-lg font-black text-orange-700">{entity.fears.length}</div>
+                          </div>
+                          <div className="text-center p-2 rounded-xl bg-blue-50/50 border border-blue-100">
+                            <div className="text-xs font-bold text-blue-600 uppercase tracking-tighter mb-1">Harms</div>
+                            <div className="text-lg font-black text-blue-700">{entity.harms.length}</div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 pt-2">
+                          <Button 
+                            variant="ghost" 
+                            className="w-full justify-between text-xs font-bold uppercase tracking-widest text-primary hover:bg-primary/5 px-3"
+                            onClick={() => {
+                              setSearchQuery(entity.name);
+                              setActiveTab('resentments');
+                            }}
+                          >
+                            Drill Down into Resentments
+                            <ChevronRight className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full py-20 text-center space-y-4">
+                    <div className="inline-flex bg-slate-100 p-4 rounded-full text-slate-400">
+                      <Search className="w-8 h-8" />
+                    </div>
+                    <p className="text-slate-500 font-medium">No entities found. Start by adding items to your inventory tabs.</p>
+                  </div>
+                )}
               </div>
-              
-              <div className="p-6 bg-slate-50/50 border-t border-slate-200">
-                <Button
-                  variant="outline"
-                  onClick={() => addRow(activeTab)}
-                  className="gap-2 bg-white border-slate-200 text-primary hover:bg-primary/5 font-semibold px-6 py-6 rounded-2xl"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add New Entity
-                </Button>
-              </div>
-            </div>
+            </TabsContent>
+
+            {['resentments', 'fears', 'harms'].map((cat) => (
+              <TabsContent key={cat} value={cat}>
+                <div className="bg-white/80 backdrop-blur-sm border border-blue-100/50 rounded-2xl p-5 flex gap-4 items-start shadow-sm mb-6">
+                  <div className="bg-blue-100/50 p-2 rounded-lg">
+                    <Info className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-slate-700 text-sm leading-relaxed font-medium">
+                      {INVENTORY_CONFIG[cat as InventoryCategory].description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden flex flex-col transition-all">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[1000px]">
+                      <thead>
+                        <tr className="bg-slate-50/50 border-b border-slate-200">
+                          {INVENTORY_CONFIG[cat as InventoryCategory].cols.map((col) => (
+                            <th key={col.key} className={`px-6 py-4 font-bold text-slate-800 text-[13px] uppercase tracking-wider border-r border-slate-200/50 last:border-r-0 ${col.width}`}>
+                              {col.header}
+                            </th>
+                          ))}
+                          <th className="px-6 py-4 font-bold text-slate-800 text-[13px] uppercase tracking-wider w-36 text-center">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {data[cat as InventoryCategory].map((row) => (
+                          <tr key={row.id} className="hover:bg-slate-50/30 group transition-colors">
+                            {INVENTORY_CONFIG[cat as InventoryCategory].cols.map((col) => (
+                              <td key={col.key} className="p-0 border-r border-slate-100/50 last:border-r-0 align-top">
+                                <textarea
+                                  value={(row[col.key as keyof InventoryRow] || '') as string}
+                                  onChange={(e) => updateCell(cat as InventoryCategory, row.id, col.key, e.target.value)}
+                                  placeholder={col.placeholder}
+                                  className="w-full min-h-[140px] p-5 bg-transparent resize-y outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5 text-sm text-slate-700 placeholder:text-slate-400 font-medium leading-relaxed transition-all"
+                                />
+                              </td>
+                            ))}
+                            <td className="px-4 py-6 align-top">
+                              <div className="flex items-center justify-center gap-1">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        const combinedText = INVENTORY_CONFIG[cat as InventoryCategory].cols
+                                          .map(c => row[c.key as keyof InventoryRow])
+                                          .filter(Boolean)
+                                          .join(' ');
+                                        setReflectionState({ isOpen: true, text: combinedText, category: cat as InventoryCategory });
+                                      }}
+                                      className="text-primary hover:text-white hover:bg-primary rounded-lg"
+                                      disabled={!INVENTORY_CONFIG[cat as InventoryCategory].cols.some(c => row[c.key as keyof InventoryRow])}
+                                    >
+                                      <Sparkles className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>AI Reflection</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => duplicateRow(cat as InventoryCategory, row)}
+                                      className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                    >
+                                      <Rows className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Duplicate Row</TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => deleteRow(cat as InventoryCategory, row.id)}
+                                      className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete Row</TooltipContent>
+                                </Tooltip>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="p-6 bg-slate-50/50 border-t border-slate-200">
+                    <Button
+                      variant="outline"
+                      onClick={() => addRow(cat as InventoryCategory)}
+                      className="gap-2 bg-white border-slate-200 text-primary hover:bg-primary/5 font-semibold px-6 py-6 rounded-2xl"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add New Entry
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+            ))}
           </Tabs>
 
           <footer className="pt-8 pb-12 text-center space-y-4">
