@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { 
   Download, 
   Copy, 
@@ -345,6 +346,11 @@ export default function App() {
           <p className="text-slate-400 text-xs">
             Pathway Ledger is a local-first utility. No data is stored on our servers.
           </p>
+          <div className="flex items-center justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
+            <Link href="/license" className="hover:text-primary transition-colors">License</Link>
+          </div>
         </footer>
       </div>
 
