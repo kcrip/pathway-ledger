@@ -7,7 +7,7 @@ export interface InventoryRow {
   col3: string;
   col4: string;
   col5?: string;
-  fifthStepNotes?: string; // New field for 5th step insights
+  fifthStepNotes?: string;
 }
 
 export interface InventoryData {
@@ -21,6 +21,7 @@ export interface ColumnConfig {
   header: string;
   placeholder: string;
   width: string;
+  suggestions?: string[]; // New field for quick-pick options
 }
 
 export interface CategoryConfig {
@@ -49,14 +50,33 @@ export const INVENTORY_CONFIG: Record<InventoryCategory, CategoryConfig> = {
       { 
         key: 'col3', 
         header: '3. Affects My...', 
-        placeholder: "Check: Self-esteem, Pride, Emotional Security, Financial Security, Ambitions, Personal Relations, Sex Relations.", 
-        width: 'min-w-[220px]' 
+        placeholder: "What area of my life is affected?", 
+        width: 'min-w-[220px]',
+        suggestions: [
+          'Self-esteem', 
+          'Pride', 
+          'Emotional Security', 
+          'Financial Security', 
+          'Ambitions', 
+          'Personal Relations', 
+          'Sex Relations'
+        ]
       },
       { 
         key: 'col4', 
         header: '4. Where was I at fault?', 
-        placeholder: "Was I: Selfish? Dishonest? Self-Seeking? Frightened? Inconsiderate?", 
-        width: 'min-w-[250px]' 
+        placeholder: "What was my part in this?", 
+        width: 'min-w-[250px]',
+        suggestions: [
+          'Selfish', 
+          'Dishonest', 
+          'Self-Seeking', 
+          'Frightened', 
+          'Inconsiderate',
+          'Jealous',
+          'Suspicious',
+          'Envious'
+        ]
       },
       { 
         key: 'col5', 
@@ -74,13 +94,28 @@ export const INVENTORY_CONFIG: Record<InventoryCategory, CategoryConfig> = {
         key: 'col1', 
         header: '1. What is the fear?', 
         placeholder: "Specific fear (e.g., fear of poverty, fear of people's opinions)", 
-        width: 'min-w-[200px]' 
+        width: 'min-w-[200px]',
+        suggestions: [
+          'Fear of Poverty',
+          'Fear of Rejection',
+          'Fear of Failure',
+          'Fear of People',
+          'Fear of the Future',
+          'Fear of Discovery'
+        ]
       },
       { 
         key: 'col2', 
         header: '2. Why do I have it?', 
         placeholder: "Underlying cause. Does it touch on my self-esteem or security?", 
-        width: 'min-w-[250px]' 
+        width: 'min-w-[250px]',
+        suggestions: [
+          'Self-esteem threatened',
+          'Financial insecurity',
+          'Emotional insecurity',
+          'Damaged ambition',
+          'Fear of loss'
+        ]
       },
       { 
         key: 'col3', 
@@ -115,13 +150,22 @@ export const INVENTORY_CONFIG: Record<InventoryCategory, CategoryConfig> = {
       { 
         key: 'col3', 
         header: '3. Where was I at fault?', 
-        placeholder: "Selfish? Dishonest? Inconsiderate? Seeking power/control?", 
-        width: 'min-w-[220px]' 
+        placeholder: "My character defects in this situation.", 
+        width: 'min-w-[220px]',
+        suggestions: [
+          'Selfish', 
+          'Dishonest', 
+          'Inconsiderate', 
+          'Self-Seeking', 
+          'Aroused Jealousy',
+          'Aroused Suspicion',
+          'Aroused Bitterness'
+        ]
       },
       { 
         key: 'col4', 
         header: '4. Resulting Harm', 
-        placeholder: "Did I arouse jealousy, bitterness, or suspicion? Who else was affected?", 
+        placeholder: "Impact on others.", 
         width: 'min-w-[220px]' 
       },
       { 
@@ -136,12 +180,12 @@ export const INVENTORY_CONFIG: Record<InventoryCategory, CategoryConfig> = {
 
 export const INITIAL_DATA: InventoryData = {
   resentments: [
-    { id: 1, col1: 'Mr. Brown (Example)', col2: 'His attention to my wife. Told my wife of my mistress.', col3: 'Sex relations, Self-esteem (fear), Personal relations.', col4: 'I was dishonest, selfish, self-seeking, and inconsiderate.', col5: 'Pray for his well-being. Focus on my own conduct and amends.' },
+    { id: 1, col1: 'Mr. Brown (Example)', col2: 'His attention to my wife. Told my wife of my mistress.', col3: 'Sex relations, Self-esteem, Personal relations', col4: 'Dishonest, Selfish, Self-seeking, Inconsiderate', col5: 'Pray for his well-being. Focus on my own conduct and amends.' },
   ],
   fears: [
-    { id: 1, col1: 'Losing my job (Example)', col2: 'Fear of not having enough money (Financial Insecurity).', col3: 'Yes. My own schemes have not provided peace or security.', col4: 'Trust my Higher Power to provide; do the next right thing at work.' },
+    { id: 1, col1: 'Losing my job (Example)', col2: 'Financial Insecurity, Emotional Insecurity', col3: 'Yes. My own schemes have not provided peace or security.', col4: 'Trust my Higher Power to provide; do the next right thing at work.' },
   ],
   harms: [
-    { id: 1, col1: 'My spouse (Example)', col2: 'Lied about my whereabouts. Was emotionally unavailable.', col3: 'Dishonest, Selfish, Inconsiderate.', col4: 'Yes, aroused bitterness and suspicion.', col5: 'Should have been honest, present, and prioritizing the relationship.' },
+    { id: 1, col1: 'My spouse (Example)', col2: 'Lied about my whereabouts. Was emotionally unavailable.', col3: 'Dishonest, Selfish, Inconsiderate', col4: 'Aroused bitterness and suspicion.', col5: 'Should have been honest, present, and prioritizing the relationship.' },
   ]
 };

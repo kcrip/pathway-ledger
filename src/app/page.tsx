@@ -19,7 +19,7 @@ import {
   ChevronRight,
   User,
   BookOpen,
-  Printer
+  Tag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -49,12 +49,14 @@ import {
   TooltipTrigger,
   TooltipContent
 } from "@/components/ui/tooltip";
-import { Badge } from "@/components/badge"; // Note: changed to Badge from '@/components/ui/badge' to Badge from "@/components/badge" based on project files
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-
-// Fix for badge import if needed based on previous context, but using what's in project files
-import { Badge as UIBadge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type TabValue = InventoryCategory | 'summary' | 'fifth-step';
 
@@ -77,7 +79,6 @@ export default function App() {
   });
   const { toast } = useToast();
 
-  // Hydration safety
   useEffect(() => {
     setIsMounted(true);
     const saved = localStorage.getItem('pathway_ledger_data');
@@ -90,14 +91,12 @@ export default function App() {
     }
   }, []);
 
-  // Persistence
   useEffect(() => {
     if (isMounted) {
       localStorage.setItem('pathway_ledger_data', JSON.stringify(data));
     }
   }, [data, isMounted]);
 
-  // Grouped data for Summary View
   const groupedData = useMemo(() => {
     const map = new Map<string, { 
       resentments: InventoryRow[], 
@@ -139,6 +138,23 @@ export default function App() {
       ...prev,
       [tab]: prev[tab].map(row => row.id === id ? { ...row, [field]: value } : row)
     }));
+  };
+
+  const toggleSuggestion = (tab: InventoryCategory, rowId: number, field: string, suggestion: string) => {
+    const row = data[tab].find(r => r.id === rowId);
+    if (!row) return;
+
+    const currentVal = (row[field as keyof InventoryRow] || '') as string;
+    const items = currentVal.split(',').map(i => i.trim()).filter(Boolean);
+    
+    let newVal;
+    if (items.includes(suggestion)) {
+      newVal = items.filter(i => i !== suggestion).join(', ');
+    } else {
+      newVal = [...items, suggestion].join(', ');
+    }
+    
+    updateCell(tab, rowId, field, newVal);
   };
 
   const addRow = (tab: InventoryCategory) => {
@@ -382,9 +398,9 @@ export default function App() {
                             {entity.name}
                           </CardTitle>
                         </div>
-                        <UIBadge variant="outline" className="bg-white text-slate-500 font-bold">
+                        <Badge variant="outline" className="bg-white text-slate-500 font-bold">
                           {entity.resentments.length + entity.fears.length + entity.harms.length} Total
-                        </UIBadge>
+                        </Badge>
                       </CardHeader>
                       <CardContent className="p-4 space-y-4">
                         <div className="grid grid-cols-3 gap-2">
@@ -461,13 +477,46 @@ export default function App() {
                         {data[cat as InventoryCategory].map((row) => (
                           <tr key={row.id} className="hover:bg-slate-50/30 group transition-colors">
                             {INVENTORY_CONFIG[cat as InventoryCategory].cols.map((col) => (
-                              <td key={col.key} className="p-0 border-r border-slate-100/50 last:border-r-0 align-top">
+                              <td key={col.key} className="p-0 border-r border-slate-100/50 last:border-r-0 align-top group/cell relative">
                                 <textarea
                                   value={(row[col.key as keyof InventoryRow] || '') as string}
                                   onChange={(e) => updateCell(cat as InventoryCategory, row.id, col.key, e.target.value)}
                                   placeholder={col.placeholder}
-                                  className="w-full min-h-[140px] p-5 bg-transparent resize-y outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5 text-sm text-slate-700 placeholder:text-slate-400 font-medium leading-relaxed transition-all"
+                                  className="w-full min-h-[160px] p-5 bg-transparent resize-y outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5 text-sm text-slate-700 placeholder:text-slate-400 font-medium leading-relaxed transition-all pb-10"
                                 />
+                                
+                                {col.suggestions && (
+                                  <div className="absolute bottom-2 left-2 flex gap-1 items-center">
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-primary rounded-full">
+                                          <Tag className="h-3 w-3" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-64 p-3 rounded-xl shadow-2xl border-slate-200" align="start">
+                                        <div className="space-y-2">
+                                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Quick Picks</p>
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {col.suggestions.map((suggestion) => {
+                                              const isActive = ((row[col.key as keyof InventoryRow] || '') as string).includes(suggestion);
+                                              return (
+                                                <Badge
+                                                  key={suggestion}
+                                                  variant={isActive ? "default" : "outline"}
+                                                  className={`cursor-pointer px-2 py-0.5 text-[10px] transition-all hover:scale-105 ${isActive ? 'bg-primary' : 'hover:bg-slate-50'}`}
+                                                  onClick={() => toggleSuggestion(cat as InventoryCategory, row.id, col.key, suggestion)}
+                                                >
+                                                  {suggestion}
+                                                </Badge>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Suggestions</span>
+                                  </div>
+                                )}
                               </td>
                             ))}
                             <td className="px-4 py-6 align-top">
