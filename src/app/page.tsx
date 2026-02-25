@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +14,9 @@ import {
   Sparkles,
   Upload,
   Save,
-  LifeBuoy
+  LifeBuoy,
+  ClipboardPaste,
+  FileDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -27,11 +30,22 @@ import {
 import { AIReflectionDialog } from '@/components/ai-reflection-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function App() {
   const [data, setData] = useState<InventoryData>(INITIAL_DATA);
   const [activeTab, setActiveTab] = useState<InventoryCategory>('resentments');
   const [isMounted, setIsMounted] = useState(false);
+  const [isPasteDialogOpen, setIsPasteDialogOpen] = useState(false);
+  const [pastedContent, setPastedContent] = useState('');
   const [reflectionState, setReflectionState] = useState<{
     isOpen: boolean;
     text: string;
@@ -136,6 +150,86 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const lines = content.split(/\r?\n/).filter(line => line.trim());
+      
+      // Basic CSV parser (handles simple quotes, but not all edge cases)
+      const parseCSVLine = (line: string) => {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            if (inQuotes && line[i+1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current);
+        return result;
+      };
+
+      const rows = lines.slice(1).map((line, idx) => {
+        const values = parseCSVLine(line);
+        const row: InventoryRow = { id: Date.now() + idx };
+        INVENTORY_CONFIG[activeTab].cols.forEach((col, i) => {
+          row[col.key as keyof InventoryRow] = values[i] || '';
+        });
+        return row;
+      });
+
+      setData(prev => ({
+        ...prev,
+        [activeTab]: [...prev[activeTab], ...rows]
+      }));
+      
+      toast({ title: "Import Successful", description: `Added ${rows.length} rows to ${activeTab}.` });
+      event.target.value = ''; // Reset input
+    };
+    reader.readAsText(file);
+  };
+
+  const handlePasteImport = () => {
+    if (!pastedContent.trim()) return;
+
+    const lines = pastedContent.split(/\r?\n/).filter(line => line.trim());
+    const isTSV = pastedContent.includes('\t');
+    const separator = isTSV ? '\t' : ',';
+
+    const rows = lines.map((line, idx) => {
+      const values = line.split(separator).map(v => v.trim().replace(/^"(.*)"$/, '$1'));
+      const row: InventoryRow = { id: Date.now() + idx };
+      INVENTORY_CONFIG[activeTab].cols.forEach((col, i) => {
+        row[col.key as keyof InventoryRow] = values[i] || '';
+      });
+      return row;
+    });
+
+    setData(prev => ({
+      ...prev,
+      [activeTab]: [...prev[activeTab], ...rows]
+    }));
+
+    toast({ title: "Pasted Data Imported", description: `Added ${rows.length} rows to ${activeTab}.` });
+    setPastedContent('');
+    setIsPasteDialogOpen(false);
+  };
+
   const handleExportBackup = () => {
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -191,13 +285,13 @@ export default function App() {
           <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
-              onClick={() => document.getElementById('import-file')?.click()}
+              onClick={() => document.getElementById('import-json')?.click()}
               className="gap-2 border-slate-200 hover:bg-white"
             >
               <Upload className="w-4 h-4" />
-              Import
+              Full Import
               <input 
-                id="import-file" 
+                id="import-json" 
                 type="file" 
                 className="hidden" 
                 accept=".json" 
@@ -210,7 +304,31 @@ export default function App() {
               className="gap-2 border-slate-200 hover:bg-white"
             >
               <Save className="w-4 h-4" />
-              Backup
+              Full Backup
+            </Button>
+            <div className="h-10 w-px bg-slate-200 mx-2 hidden sm:block" />
+            <Button 
+              variant="secondary"
+              onClick={() => setIsPasteDialogOpen(true)}
+              className="gap-2 shadow-sm border border-slate-200"
+            >
+              <ClipboardPaste className="w-4 h-4" />
+              Paste Data
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => document.getElementById('import-csv')?.click()}
+              className="gap-2 border-slate-200"
+            >
+              <FileDown className="w-4 h-4" />
+              Import CSV
+              <input 
+                id="import-csv" 
+                type="file" 
+                className="hidden" 
+                accept=".csv" 
+                onChange={handleImportCSV} 
+              />
             </Button>
             <Button 
               onClick={handleCopyTSV}
@@ -218,14 +336,6 @@ export default function App() {
             >
               <Copy className="w-4 h-4" />
               Copy for Sheets
-            </Button>
-            <Button 
-              variant="secondary"
-              onClick={handleExportCSV}
-              className="gap-2 shadow-sm border border-slate-200"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
             </Button>
           </div>
         </header>
@@ -258,9 +368,19 @@ export default function App() {
             <div className="bg-blue-100/50 p-2 rounded-lg">
               <Info className="w-5 h-5 text-primary" />
             </div>
-            <p className="text-slate-700 text-sm leading-relaxed font-medium">
-              {currentConfig.description}
-            </p>
+            <div className="flex-1 space-y-1">
+              <p className="text-slate-700 text-sm leading-relaxed font-medium">
+                {currentConfig.description}
+              </p>
+              <div className="flex gap-4 pt-1">
+                <button 
+                  onClick={handleExportCSV}
+                  className="text-[10px] font-bold uppercase tracking-wider text-primary hover:underline"
+                >
+                  Export {activeTab} CSV
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden flex flex-col transition-all">
@@ -353,6 +473,29 @@ export default function App() {
           </div>
         </footer>
       </div>
+
+      <Dialog open={isPasteDialogOpen} onOpenChange={setIsPasteDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Paste Spreadsheet Data</DialogTitle>
+            <DialogDescription>
+              Copy rows from Google Sheets or Excel and paste them here. The columns should match the order in the current tab.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea 
+              placeholder="Paste your TSV or CSV data here..." 
+              className="min-h-[300px] font-mono text-xs rounded-xl"
+              value={pastedContent}
+              onChange={(e) => setPastedContent(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsPasteDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handlePasteImport} disabled={!pastedContent.trim()}>Import Rows</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AIReflectionDialog
         isOpen={reflectionState.isOpen}
