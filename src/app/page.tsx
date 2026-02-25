@@ -19,7 +19,8 @@ import {
   ChevronRight,
   User,
   BookOpen,
-  Tag
+  Tag,
+  Heart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -605,10 +606,14 @@ export default function App() {
             <p className="text-slate-400 text-xs">
               Pathway Ledger is an open-source utility for personal recovery work.
             </p>
-            <div className="flex items-center justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <div className="flex flex-wrap items-center justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
               <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
               <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
               <Link href="/license" className="hover:text-primary transition-colors">License</Link>
+              <Link href="/support" className="flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors animate-pulse">
+                <Heart className="w-3 h-3 fill-primary" />
+                Support & Transparency
+              </Link>
             </div>
           </footer>
         </div>
