@@ -35,3 +35,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  body {
+    @apply bg-white text-black;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  /* Hide all app UI by default in print mode if not explicitly shown */
+  body > *:not(.print-container) {
+    display: none !important;
+  }
+  .print-container {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+  }
+}

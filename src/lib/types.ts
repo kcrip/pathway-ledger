@@ -7,6 +7,7 @@ export interface InventoryRow {
   col3: string;
   col4: string;
   col5?: string;
+  fifthStepNotes?: string; // New field for 5th step insights
 }
 
 export interface InventoryData {
@@ -16,7 +17,7 @@ export interface InventoryData {
 }
 
 export interface ColumnConfig {
-  key: keyof Omit<InventoryRow, 'id'>;
+  key: keyof Omit<InventoryRow, 'id' | 'fifthStepNotes'>;
   header: string;
   placeholder: string;
   width: string;

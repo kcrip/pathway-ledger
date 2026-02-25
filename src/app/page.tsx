@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -18,7 +17,9 @@ import {
   LayoutDashboard,
   Search,
   ChevronRight,
-  User
+  User,
+  BookOpen,
+  Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -30,6 +31,7 @@ import {
   INITIAL_DATA 
 } from '@/lib/types';
 import { AIReflectionDialog } from '@/components/ai-reflection-dialog';
+import { FifthStepViewer } from '@/components/fifth-step-viewer';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import {
@@ -47,11 +49,14 @@ import {
   TooltipTrigger,
   TooltipContent
 } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/badge"; // Note: changed to Badge from '@/components/ui/badge' to Badge from "@/components/badge" based on project files
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-type TabValue = InventoryCategory | 'summary';
+// Fix for badge import if needed based on previous context, but using what's in project files
+import { Badge as UIBadge } from "@/components/ui/badge";
+
+type TabValue = InventoryCategory | 'summary' | 'fifth-step';
 
 export default function App() {
   const [data, setData] = useState<InventoryData>(INITIAL_DATA);
@@ -60,6 +65,7 @@ export default function App() {
   const [isPasteDialogOpen, setIsPasteDialogOpen] = useState(false);
   const [pastedContent, setPastedContent] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFifthStepMode, setIsFifthStepMode] = useState(false);
   const [reflectionState, setReflectionState] = useState<{
     isOpen: boolean;
     text: string;
@@ -166,7 +172,7 @@ export default function App() {
   };
 
   const handleCopyTSV = async () => {
-    const cat = activeTab === 'summary' ? 'resentments' : activeTab;
+    const cat = activeTab === 'summary' || activeTab === 'fifth-step' ? 'resentments' : activeTab;
     const tabData = data[cat as InventoryCategory];
     const tabCols = INVENTORY_CONFIG[cat as InventoryCategory].cols;
     
@@ -220,7 +226,7 @@ export default function App() {
   };
 
   const handlePasteImport = () => {
-    if (!pastedContent.trim() || activeTab === 'summary') return;
+    if (!pastedContent.trim() || activeTab === 'summary' || activeTab === 'fifth-step') return;
 
     const lines = pastedContent.split(/\r?\n/).filter(line => line.trim());
     const isTSV = pastedContent.includes('\t');
@@ -246,6 +252,19 @@ export default function App() {
   };
 
   if (!isMounted) return null;
+
+  if (isFifthStepMode) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <FifthStepViewer 
+          data={data} 
+          onUpdateNote={(cat, id, note) => updateCell(cat, id, 'fifthStepNotes', note)}
+          onClose={() => setIsFifthStepMode(false)}
+        />
+        <Toaster />
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -308,26 +327,29 @@ export default function App() {
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <TabsList className="bg-slate-200/50 p-1.5 h-auto rounded-2xl border border-slate-200/50">
-                <TabsTrigger value="resentments" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
+              <TabsList className="bg-slate-200/50 p-1.5 h-auto rounded-2xl border border-slate-200/50 flex-wrap sm:flex-nowrap">
+                <TabsTrigger value="resentments" className="rounded-xl px-4 md:px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
                   Resentments
                 </TabsTrigger>
-                <TabsTrigger value="fears" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
+                <TabsTrigger value="fears" className="rounded-xl px-4 md:px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
                   Fears
                 </TabsTrigger>
-                <TabsTrigger value="harms" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
+                <TabsTrigger value="harms" className="rounded-xl px-4 md:px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all">
                   Harms
                 </TabsTrigger>
-                <TabsTrigger value="summary" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all gap-2">
+                <TabsTrigger value="summary" className="rounded-xl px-4 md:px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-md font-semibold text-sm transition-all gap-2">
                   <LayoutDashboard className="w-4 h-4" />
                   Entity Summary
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50/50 border border-blue-100 rounded-xl">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span className="text-xs font-semibold text-primary uppercase tracking-wider">AI Reflective Tools Enabled</span>
-              </div>
+              <Button 
+                onClick={() => setIsFifthStepMode(true)}
+                className="gap-2 bg-slate-900 hover:bg-black text-white rounded-xl shadow-xl shadow-slate-900/10 px-6"
+              >
+                <BookOpen className="w-4 h-4" />
+                Enter 5th Step Mode
+              </Button>
             </div>
 
             <TabsContent value="summary" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -360,9 +382,9 @@ export default function App() {
                             {entity.name}
                           </CardTitle>
                         </div>
-                        <Badge variant="outline" className="bg-white text-slate-500 font-bold">
+                        <UIBadge variant="outline" className="bg-white text-slate-500 font-bold">
                           {entity.resentments.length + entity.fears.length + entity.harms.length} Total
-                        </Badge>
+                        </UIBadge>
                       </CardHeader>
                       <CardContent className="p-4 space-y-4">
                         <div className="grid grid-cols-3 gap-2">
