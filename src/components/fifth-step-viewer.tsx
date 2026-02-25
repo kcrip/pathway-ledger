@@ -8,7 +8,11 @@ import {
   MessageSquare, 
   Printer, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  Sparkles,
+  Loader2,
+  RefreshCw,
+  ArrowLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { InventoryData, InventoryCategory, InventoryRow, INVENTORY_CONFIG } from '@/lib/types';
+import { generatePrayerList } from '@/ai/flows/generate-prayer-list';
 
 interface FifthStepViewerProps {
   data: InventoryData;
@@ -35,6 +40,9 @@ export function FifthStepViewer({ data, onUpdateNote, onClose }: FifthStepViewer
   }, [data]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [isGeneratingPrayers, setIsGeneratingPrayers] = useState(false);
+  const [prayers, setPrayers] = useState<string | null>(null);
 
   const currentItem = flattenedItems[currentIndex];
   const progress = flattenedItems.length > 0 
@@ -44,12 +52,26 @@ export function FifthStepViewer({ data, onUpdateNote, onClose }: FifthStepViewer
   const handleNext = () => {
     if (currentIndex < flattenedItems.length - 1) {
       setCurrentIndex(prev => prev + 1);
+    } else {
+      setIsCompleted(true);
     }
   };
 
   const handlePrev = () => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
+    }
+  };
+
+  const handleGeneratePrayers = async () => {
+    setIsGeneratingPrayers(true);
+    try {
+      const result = await generatePrayerList({ inventory: data });
+      setPrayers(result.prayerList);
+    } catch (err) {
+      console.error("Failed to generate prayers", err);
+    } finally {
+      setIsGeneratingPrayers(false);
     }
   };
 
@@ -66,6 +88,96 @@ export function FifthStepViewer({ data, onUpdateNote, onClose }: FifthStepViewer
         <h2 className="text-2xl font-bold text-slate-800">Inventory is Empty</h2>
         <p className="text-slate-500 max-w-xs">You need to add items to your inventory before you can start your 5th step session.</p>
         <Button onClick={onClose}>Return to Editor</Button>
+      </div>
+    );
+  }
+
+  if (isCompleted) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8 py-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <div className="text-center space-y-4">
+          <div className="inline-flex bg-green-100 p-4 rounded-full text-green-600 mb-2">
+            <CheckCircle2 className="w-12 h-12" />
+          </div>
+          <h1 className="text-4xl font-black text-slate-900">Session Complete</h1>
+          <p className="text-slate-500 max-w-lg mx-auto leading-relaxed">
+            You have admitted the exact nature of your wrongs. This is a vital milestone. 
+            Now, you can generate a personalized spiritual prayer list to help you move forward.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50/50 border-b border-slate-100">
+              <CardTitle className="text-lg font-bold">Session Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-slate-500 font-medium">Items Shared</span>
+                <span className="font-bold text-slate-900">{flattenedItems.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-slate-500 font-medium">Resentments</span>
+                <span className="font-bold text-red-600">{data.resentments.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                <span className="text-slate-500 font-medium">Fears</span>
+                <span className="font-bold text-orange-600">{data.fears.length}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500 font-medium">Harms</span>
+                <span className="font-bold text-blue-600">{data.harms.length}</span>
+              </div>
+              <div className="pt-4 flex gap-2">
+                <Button variant="outline" className="w-full rounded-xl gap-2" onClick={handlePrint}>
+                  <Printer className="w-4 h-4" /> Print Results
+                </Button>
+                <Button variant="ghost" className="w-full rounded-xl gap-2" onClick={onClose}>
+                  <ArrowLeft className="w-4 h-4" /> Exit
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20 bg-primary/5 rounded-3xl shadow-xl shadow-primary/5 overflow-hidden border-2">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-bold flex items-center gap-2 text-primary">
+                <Sparkles className="w-5 h-5" />
+                Spiritual Prayer List
+              </CardTitle>
+              <CardDescription>
+                AI-synthesized prayers based on your turnarounds and spiritual remedies.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              {!prayers && !isGeneratingPrayers ? (
+                <div className="text-center py-10 space-y-4">
+                  <p className="text-slate-600 text-sm">Ready to generate your path forward?</p>
+                  <Button onClick={handleGeneratePrayers} className="gap-2 rounded-2xl px-8 shadow-lg shadow-primary/20">
+                    <Sparkles className="w-4 h-4" />
+                    Generate My Prayers
+                  </Button>
+                </div>
+              ) : isGeneratingPrayers ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <p className="text-slate-500 font-medium animate-pulse">Synthesizing spiritual redirections...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="bg-white rounded-2xl p-6 border border-primary/10 shadow-inner max-h-[400px] overflow-auto prose prose-sm prose-slate">
+                    {prayers?.split('\n').map((line, i) => (
+                      <p key={i} className="mb-2 text-slate-700">{line}</p>
+                    ))}
+                  </div>
+                  <Button variant="outline" onClick={handleGeneratePrayers} className="w-full rounded-xl gap-2 border-primary/20 text-primary">
+                    <RefreshCw className="w-4 h-4" /> Regenerate
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -138,10 +250,9 @@ export function FifthStepViewer({ data, onUpdateNote, onClose }: FifthStepViewer
             </Button>
             <Button 
               onClick={handleNext} 
-              disabled={currentIndex === flattenedItems.length - 1}
               className="gap-2 rounded-2xl px-8 py-6 font-bold shadow-lg shadow-primary/20"
             >
-              Next Item
+              {currentIndex === flattenedItems.length - 1 ? 'Complete Session' : 'Next Item'}
               <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
