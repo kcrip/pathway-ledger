@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -28,7 +28,7 @@ interface FifthStepViewerProps {
   onClose: () => void;
 }
 
-export function FifthStepViewer({ data, onUpdateNote, onClose }: FifthStepViewerProps) {
+export const FifthStepViewer = memo(function FifthStepViewer({ data, onUpdateNote, onClose }: FifthStepViewerProps) {
   const flattenedItems = useMemo(() => {
     const items: { category: InventoryCategory; row: InventoryRow }[] = [];
     (['resentments', 'fears', 'harms'] as const).forEach(cat => {
@@ -329,4 +329,4 @@ export function FifthStepViewer({ data, onUpdateNote, onClose }: FifthStepViewer
       </div>
     </div>
   );
-}
+});
