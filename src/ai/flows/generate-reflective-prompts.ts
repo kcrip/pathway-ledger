@@ -9,6 +9,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {headers} from 'next/headers';
+import {checkRateLimit} from '@/lib/rate-limit';
 
 const GenerateReflectivePromptsInputSchema = z.object({
   entryCategory: z
@@ -32,6 +34,11 @@ export type GenerateReflectivePromptsOutput = z.infer<
 export async function generateReflectivePrompts(
   input: GenerateReflectivePromptsInput
 ): Promise<GenerateReflectivePromptsOutput> {
+  const headersList = await headers();
+  // Security Note: This app is local-first with no backend user accounts.
+  // Rate limiting is used as a mitigation against abuse in lieu of authentication.
+  const ip = headersList.get('x-forwarded-for') || 'unknown';
+  checkRateLimit(ip);
   return generateReflectivePromptsFlow(input);
 }
 
