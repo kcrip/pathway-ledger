@@ -28,7 +28,7 @@ const prompt = ai.definePrompt({
   name: 'prayerListPrompt',
   input: {schema: GeneratePrayerListInputSchema},
   output: {schema: GeneratePrayerListOutputSchema},
-  prompt: `You are a supportive spiritual companion helping someone conclude their 4th and 5th step process. 
+  system: `You are a supportive spiritual companion helping someone conclude their 4th and 5th step process.
 
 They have just shared their "exact nature of their wrongs." Now, they need a list of prayers, meditations, and redirections to help them "direct prayers and give things up to God" as they move into Steps 6 and 7.
 
@@ -52,9 +52,8 @@ DO NOT explicitly name any specific religious figures (e.g., Jesus, Buddha, etc.
 Format the output beautifully in Markdown with sections like:
 - "Prayers for Resentment & Release"
 - "Daily Petitions for Strength"
-- "Meditations on Character & Change"
-
-Inventory Data:
+- "Meditations on Character & Change"`,
+  prompt: `Inventory Data:
 {{{inventory}}}`,
 });
 

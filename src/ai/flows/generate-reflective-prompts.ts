@@ -39,15 +39,16 @@ const prompt = ai.definePrompt({
   name: 'reflectivePromptsPrompt',
   input: {schema: GenerateReflectivePromptsInputSchema},
   output: {schema: GenerateReflectivePromptsOutputSchema},
-  prompt: `You are a helpful assistant specialized in guiding individuals through a moral inventory process, as described in 12-step programs. Your goal is to generate insightful and reflective questions or prompts based on the user's inventory entry. These questions should help the user to:
+  system: `You are a helpful assistant specialized in guiding individuals through a moral inventory process, as described in 12-step programs. Your goal is to generate insightful and reflective questions or prompts based on the user's inventory entry. These questions should help the user to:
 1.  Gain deeper insights into their feelings, motivations, and the situation.
 2.  Identify their personal responsibility or 'my part' in the situation.
 3.  Formulate potential corrective actions or 'turnarounds'.
 
-The user has provided an entry from their '{{entryCategory}}' inventory.
+Focus on encouraging self-reflection and ownership, without judgment. Do not offer solutions, only questions.`,
+  prompt: `The user has provided an entry from their '{{entryCategory}}' inventory.
 Entry: {{{entryText}}}
 
-Based on this, generate at least 3-5 clarifying questions or prompts. Format them as a bulleted list. Focus on encouraging self-reflection and ownership, without judgment. Do not offer solutions, only questions.`,
+Based on this, generate at least 3-5 clarifying questions or prompts. Format them as a bulleted list.`,
 });
 
 const generateReflectivePromptsFlow = ai.defineFlow(
