@@ -31,6 +31,7 @@ import {
   INVENTORY_CONFIG, 
   INITIAL_DATA 
 } from '@/lib/types';
+import { toggleCommaSeparatedValue } from '@/lib/utils';
 import { AIReflectionDialog } from '@/components/ai-reflection-dialog';
 import { FifthStepViewer } from '@/components/fifth-step-viewer';
 import { useToast } from '@/hooks/use-toast';
@@ -146,14 +147,7 @@ export default function App() {
     if (!row) return;
 
     const currentVal = (row[field as keyof InventoryRow] || '') as string;
-    const items = currentVal.split(',').map(i => i.trim()).filter(Boolean);
-    
-    let newVal;
-    if (items.includes(suggestion)) {
-      newVal = items.filter(i => i !== suggestion).join(', ');
-    } else {
-      newVal = [...items, suggestion].join(', ');
-    }
+    const newVal = toggleCommaSeparatedValue(currentVal, suggestion);
     
     updateCell(tab, rowId, field, newVal);
   };
@@ -256,9 +250,16 @@ export default function App() {
 
     const rows = lines.map((line, idx) => {
       const values = line.split(separator).map(v => v.trim().replace(/^"(.*)"$/, '$1'));
-      const row: InventoryRow = { id: Date.now() + idx };
+      const row: InventoryRow = {
+        id: Date.now() + idx,
+        col1: '',
+        col2: '',
+        col3: '',
+        col4: '',
+        col5: ''
+      };
       INVENTORY_CONFIG[activeTab as InventoryCategory].cols.forEach((col, i) => {
-        row[col.key as keyof InventoryRow] = values[i] || '';
+        (row as any)[col.key] = values[i] || '';
       });
       return row;
     });
