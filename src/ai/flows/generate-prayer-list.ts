@@ -5,13 +5,37 @@
  * - generatePrayerList - A function that handles the generation of prayers.
  * - GeneratePrayerListInput - The input type for the generatePrayerList function.
  * - GeneratePrayerListOutput - The return type for the generatePrayerList function.
+ *
+ * SECURITY NOTE:
+ * This is a public server action for a local-first application without user authentication.
+ * It is protected by:
+ * 1. Strict Input Validation (Zod Schema) to prevent large payload injections.
+ * 2. Rate Limiting (IP-based) to mitigate abuse and resource exhaustion.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {headers} from 'next/headers';
+import {rateLimit} from '@/lib/rate-limiter';
+
+const InventoryRowSchema = z.object({
+  id: z.number(),
+  col1: z.string().max(1000).optional(),
+  col2: z.string().max(1000).optional(),
+  col3: z.string().max(1000).optional(),
+  col4: z.string().max(1000).optional(),
+  col5: z.string().max(1000).optional(),
+  fifthStepNotes: z.string().max(2000).optional(),
+});
+
+const InventoryDataSchema = z.object({
+  resentments: z.array(InventoryRowSchema).max(100),
+  fears: z.array(InventoryRowSchema).max(100),
+  harms: z.array(InventoryRowSchema).max(100),
+});
 
 const GeneratePrayerListInputSchema = z.object({
-  inventory: z.any().describe('The full inventory data object containing resentments, fears, and harms.'),
+  inventory: InventoryDataSchema.describe('The full inventory data object containing resentments, fears, and harms.'),
 });
 export type GeneratePrayerListInput = z.infer<typeof GeneratePrayerListInputSchema>;
 
@@ -21,6 +45,13 @@ const GeneratePrayerListOutputSchema = z.object({
 export type GeneratePrayerListOutput = z.infer<typeof GeneratePrayerListOutputSchema>;
 
 export async function generatePrayerList(input: GeneratePrayerListInput): Promise<GeneratePrayerListOutput> {
+  const headersList = await headers();
+  const forwardedFor = headersList.get('x-forwarded-for');
+
+  // Extract the first IP if multiple are present (common with proxies)
+  const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : 'unknown';
+
+  rateLimit(ip);
   return generatePrayerListFlow(input);
 }
 
