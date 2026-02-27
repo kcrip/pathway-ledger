@@ -33,6 +33,8 @@ import {
 } from '@/lib/types';
 import { AIReflectionDialog } from '@/components/ai-reflection-dialog';
 import { FifthStepViewer } from '@/components/fifth-step-viewer';
+import { SecurityDialog } from '@/components/security-dialog';
+import { encryptData, decryptData } from '@/lib/crypto';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import {
@@ -78,25 +80,109 @@ export default function App() {
     text: '',
     category: 'resentments'
   });
+
+  // Security State
+  const [isLocked, setIsLocked] = useState(true);
+  const [encryptionPassword, setEncryptionPassword] = useState<string | null>(null);
+  const [securityMode, setSecurityMode] = useState<'setup' | 'unlock'>('setup');
+  const [securityError, setSecurityError] = useState(false);
+
   const { toast } = useToast();
 
   useEffect(() => {
     setIsMounted(true);
     const saved = localStorage.getItem('pathway_ledger_data');
+
     if (saved) {
       try {
-        setData(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Check if data is encrypted (has ciphertext 'ct' field)
+        if (parsed.ct && parsed.iv && parsed.s) {
+          setSecurityMode('unlock');
+          setIsLocked(true);
+        } else {
+          // Plaintext data exists (migration scenario)
+          setData(parsed);
+          setSecurityMode('setup');
+          setIsLocked(true);
+          toast({
+            title: "Security Update",
+            description: "Please create a password to secure your existing data.",
+          });
+        }
       } catch (e) {
         console.error("Failed to parse saved data", e);
+        // Corrupt data? treat as fresh start
+        setSecurityMode('setup');
+        setIsLocked(true);
       }
+    } else {
+      // No data, fresh start
+      setSecurityMode('setup');
+      setIsLocked(true);
     }
   }, []);
 
+  // Save Effect - Only save if unlocked and we have a password
   useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('pathway_ledger_data', JSON.stringify(data));
+    if (isMounted && !isLocked && encryptionPassword) {
+      const saveData = async () => {
+        try {
+          const encrypted = await encryptData(data, encryptionPassword);
+          localStorage.setItem('pathway_ledger_data', encrypted);
+        } catch (e) {
+          console.error("Failed to encrypt/save data", e);
+          toast({
+            variant: "destructive",
+            title: "Save Failed",
+            description: "Could not encrypt your data. Please check console.",
+          });
+        }
+      };
+      saveData();
     }
-  }, [data, isMounted]);
+  }, [data, isMounted, isLocked, encryptionPassword]);
+
+  const handleSecurityUnlock = async (password: string) => {
+    setSecurityError(false);
+
+    if (securityMode === 'setup') {
+      // Setting up new password
+      setEncryptionPassword(password);
+      setIsLocked(false);
+      toast({
+        title: "Inventory Secured",
+        description: "Your data is now encrypted locally.",
+      });
+    } else {
+      // Unlocking existing data
+      try {
+        const saved = localStorage.getItem('pathway_ledger_data');
+        if (!saved) return; // Should not happen in unlock mode
+
+        const decrypted = await decryptData(saved, password);
+        setData(decrypted);
+        setEncryptionPassword(password);
+        setIsLocked(false);
+      } catch (e) {
+        console.error("Unlock failed", e);
+        setSecurityError(true);
+      }
+    }
+  };
+
+  const handleResetData = () => {
+    localStorage.removeItem('pathway_ledger_data');
+    setData(INITIAL_DATA);
+    setSecurityMode('setup');
+    setSecurityError(false);
+    setEncryptionPassword(null);
+    setIsLocked(true);
+    toast({
+      title: "Data Reset",
+      description: "All local data has been cleared. You can start fresh.",
+    });
+  };
 
   const groupedData = useMemo(() => {
     const map = new Map<string, { 
@@ -647,6 +733,15 @@ export default function App() {
           category={reflectionState.category}
           onClose={() => setReflectionState(prev => ({ ...prev, isOpen: false }))}
         />
+
+        <SecurityDialog
+          isOpen={isLocked && isMounted}
+          mode={securityMode}
+          onUnlock={handleSecurityUnlock}
+          onReset={handleResetData}
+          isError={securityError}
+        />
+
         <Toaster />
       </div>
     </TooltipProvider>
