@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   Copy, 
@@ -134,12 +134,20 @@ export default function App() {
     return groupedData.filter(e => e.name.toLowerCase().includes(lowerQuery));
   }, [groupedData, searchQuery]);
 
-  const updateCell = (tab: InventoryCategory, id: number, field: string, value: string) => {
+  const updateCell = useCallback((tab: InventoryCategory, id: number, field: string, value: string) => {
     setData(prev => ({
       ...prev,
       [tab]: prev[tab].map(row => row.id === id ? { ...row, [field]: value } : row)
     }));
-  };
+  }, []);
+
+  const handleUpdateFifthStepNote = useCallback((cat: InventoryCategory, id: number, note: string) => {
+    updateCell(cat, id, 'fifthStepNotes', note);
+  }, [updateCell]);
+
+  const handleCloseFifthStep = useCallback(() => {
+    setIsFifthStepMode(false);
+  }, []);
 
   const toggleSuggestion = (tab: InventoryCategory, rowId: number, field: string, suggestion: string) => {
     const row = data[tab].find(r => r.id === rowId);
@@ -280,8 +288,8 @@ export default function App() {
       <div className="min-h-screen bg-slate-50 p-4 md:p-8">
         <FifthStepViewer 
           data={data} 
-          onUpdateNote={(cat, id, note) => updateCell(cat, id, 'fifthStepNotes', note)}
-          onClose={() => setIsFifthStepMode(false)}
+          onUpdateNote={handleUpdateFifthStepNote}
+          onClose={handleCloseFifthStep}
         />
         <Toaster />
       </div>
