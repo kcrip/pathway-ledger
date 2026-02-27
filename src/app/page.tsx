@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Copy, 
@@ -63,6 +63,8 @@ type TabValue = InventoryCategory | 'summary' | 'fifth-step';
 
 export default function App() {
   const [data, setData] = useState<InventoryData>(INITIAL_DATA);
+  const dataRef = useRef(data);
+
   const [activeTab, setActiveTab] = useState<TabValue>('resentments');
   const [isMounted, setIsMounted] = useState(false);
   const [isPasteDialogOpen, setIsPasteDialogOpen] = useState(false);
@@ -80,6 +82,11 @@ export default function App() {
   });
   const { toast } = useToast();
 
+  // Keep ref in sync for beforeunload handler
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   useEffect(() => {
     setIsMounted(true);
     const saved = localStorage.getItem('pathway_ledger_data');
@@ -92,11 +99,32 @@ export default function App() {
     }
   }, []);
 
+  // Debounce persistence: Only save after 1000ms of inactivity
   useEffect(() => {
-    if (isMounted) {
+    if (!isMounted) return;
+
+    const handler = setTimeout(() => {
       localStorage.setItem('pathway_ledger_data', JSON.stringify(data));
-    }
+    }, 1000);
+
+    return () => clearTimeout(handler);
   }, [data, isMounted]);
+
+  // Safety net: Save immediately on tab close OR component unmount (navigation)
+  // to catch any pending changes that haven't been debounced yet.
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      localStorage.setItem('pathway_ledger_data', JSON.stringify(dataRef.current));
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Also save on unmount (e.g. client-side navigation)
+      localStorage.setItem('pathway_ledger_data', JSON.stringify(dataRef.current));
+    };
+  }, []);
 
   const groupedData = useMemo(() => {
     const map = new Map<string, { 
