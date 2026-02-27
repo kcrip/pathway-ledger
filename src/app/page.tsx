@@ -256,9 +256,9 @@ export default function App() {
 
     const rows = lines.map((line, idx) => {
       const values = line.split(separator).map(v => v.trim().replace(/^"(.*)"$/, '$1'));
-      const row: InventoryRow = { id: Date.now() + idx };
+      const row: InventoryRow = { id: Date.now() + idx, col1: '', col2: '', col3: '', col4: '', col5: '' };
       INVENTORY_CONFIG[activeTab as InventoryCategory].cols.forEach((col, i) => {
-        row[col.key as keyof InventoryRow] = values[i] || '';
+        (row as any)[col.key] = values[i] || '';
       });
       return row;
     });

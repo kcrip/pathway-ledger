@@ -32,7 +32,7 @@ export default function TermsPage() {
               <h2>Acceptance of Terms</h2>
             </div>
             <p>
-              By using Pathway Ledger, you agree to these terms. This application is a tool provided "as-is" to assist individuals in their personal recovery work.
+              By using Pathway Ledger, you agree to these terms. This application is a tool provided &quot;as-is&quot; to assist individuals in their personal recovery work.
             </p>
           </section>
 

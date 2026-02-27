@@ -59,10 +59,10 @@ export default function SupportPage() {
                     Pathway Ledger was created with a single purpose: to provide high-quality, private recovery tools to anyone who needs them, without the barrier of cost or the compromise of privacy.
                   </p>
                   <p>
-                    <strong>We don't sell your data. We don't have ads. We don't have subscriptions.</strong>
+                    <strong>We don&apos;t sell your data. We don&apos;t have ads. We don&apos;t have subscriptions.</strong>
                   </p>
                   <p>
-                    However, the "AI Reflection" tools and server hosting incur real monthly costs. Your support helps cover these "GenAI" tokens and infrastructure expenses so the site can stay alive for the next person reaching for help.
+                    However, the &quot;AI Reflection&quot; tools and server hosting incur real monthly costs. Your support helps cover these &quot;GenAI&quot; tokens and infrastructure expenses so the site can stay alive for the next person reaching for help.
                   </p>
                 </div>
 
@@ -72,7 +72,7 @@ export default function SupportPage() {
                     <h3>Support via Venmo</h3>
                   </div>
                   <p className="text-sm text-blue-800/80">
-                    If this tool helped you uncover insights or find peace, consider "tipping" a few dollars to cover the server costs.
+                    If this tool helped you uncover insights or find peace, consider &quot;tipping&quot; a few dollars to cover the server costs.
                   </p>
                   <div className="flex flex-col sm:flex-row items-center gap-4">
                     <Link href="https://venmo.com/u/kcdrip" target="_blank" className="w-full sm:w-auto">

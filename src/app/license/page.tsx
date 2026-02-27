@@ -59,7 +59,7 @@ SOFTWARE.`}
               <h2>Our Philosophy</h2>
             </div>
             <p>
-              Pathway Ledger was built with the spirit of "freely given." We believe recovery tools should be accessible, private, and free from commercial exploitation. This project is open-source and intended to help those seeking a new way of life.
+              Pathway Ledger was built with the spirit of &quot;freely given.&quot; We believe recovery tools should be accessible, private, and free from commercial exploitation. This project is open-source and intended to help those seeking a new way of life.
             </p>
           </section>
         </main>

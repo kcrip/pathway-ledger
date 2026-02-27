@@ -32,7 +32,7 @@ export default function PrivacyPage() {
               <h2>No Cloud Collection</h2>
             </div>
             <p>
-              Pathway Ledger is a "local-first" application. This means that 100% of the data you enter into your worksheet is stored exclusively in your browser's local storage (LocalStorage). We do not have a database, and we do not transmit your inventory data to any external servers.
+              Pathway Ledger is a &quot;local-first&quot; application. This means that 100% of the data you enter into your worksheet is stored exclusively in your browser&apos;s local storage (LocalStorage). We do not have a database, and we do not transmit your inventory data to any external servers.
             </p>
           </section>
 
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-slate-900 font-semibold">AI Reflection Privacy</h2>
             <p>
-              When you use the "AI Reflective Tool," the specific text of that row is sent to a secure Generative AI model provider (Google Gemini via Genkit) to generate questions. This data is processed as a transient request and is not used to train global models. However, for maximum anonymity, we recommend avoiding the use of full names or highly specific identifying details in your inventory text if you intend to use the AI features.
+              When you use the &quot;AI Reflective Tool,&quot; the specific text of that row is sent to a secure Generative AI model provider (Google Gemini via Genkit) to generate questions. This data is processed as a transient request and is not used to train global models. However, for maximum anonymity, we recommend avoiding the use of full names or highly specific identifying details in your inventory text if you intend to use the AI features.
             </p>
           </section>
 
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="text-slate-900 font-semibold">Data Persistence</h2>
             <p>
-              Because data is stored in your browser, clearing your browser cache or "site data" for this domain will delete your inventory. We provide "Backup" and "Export" tools on the main page so you can maintain your own local copies.
+              Because data is stored in your browser, clearing your browser cache or &quot;site data&quot; for this domain will delete your inventory. We provide &quot;Backup&quot; and &quot;Export&quot; tools on the main page so you can maintain your own local copies.
             </p>
           </section>
         </main>

@@ -46,6 +46,7 @@ export function AIReflectionDialog({ category, text, isOpen, onClose }: AIReflec
     } else {
       setPrompts(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   return (
@@ -73,7 +74,7 @@ export function AIReflectionDialog({ category, text, isOpen, onClose }: AIReflec
 
         <div className="p-6">
           <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100 italic text-slate-600 text-sm">
-            "{text}"
+            &quot;{text}&quot;
           </div>
 
           {loading ? (
