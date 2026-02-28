@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-  Copy, 
-  Plus, 
-  Trash2, 
-  Info, 
-  FileSpreadsheet, 
+import {
+  Copy,
+  Plus,
+  Trash2,
+  Info,
+  FileSpreadsheet,
   Sparkles,
   Upload,
   Save,
@@ -24,12 +24,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { 
-  InventoryData, 
-  InventoryCategory, 
-  InventoryRow, 
-  INVENTORY_CONFIG, 
-  INITIAL_DATA 
+import {
+  InventoryData,
+  InventoryCategory,
+  InventoryRow,
+  INVENTORY_CONFIG,
+  INITIAL_DATA
 } from '@/lib/types';
 import { AIReflectionDialog } from '@/components/ai-reflection-dialog';
 import { FifthStepViewer } from '@/components/fifth-step-viewer';
@@ -85,7 +85,13 @@ export default function App() {
     const saved = localStorage.getItem('pathway_ledger_data');
     if (saved) {
       try {
-        setData(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        const validated: InventoryData = {
+          resentments: Array.isArray(parsed.resentments) ? parsed.resentments : [],
+          fears: Array.isArray(parsed.fears) ? parsed.fears : [],
+          harms: Array.isArray(parsed.harms) ? parsed.harms : []
+        };
+        setData(validated);
       } catch (e) {
         console.error("Failed to parse saved data", e);
       }
@@ -99,13 +105,14 @@ export default function App() {
   }, [data, isMounted]);
 
   const groupedData = useMemo(() => {
-    const map = new Map<string, { 
-      resentments: InventoryRow[], 
-      fears: InventoryRow[], 
-      harms: InventoryRow[] 
+    const map = new Map<string, {
+      resentments: InventoryRow[],
+      fears: InventoryRow[],
+      harms: InventoryRow[]
     }>();
 
     const addToMap = (category: InventoryCategory, rows: InventoryRow[]) => {
+      if (!Array.isArray(rows)) return;
       rows.forEach(row => {
         const entity = (row.col1 || 'Unspecified').trim();
         if (!map.has(entity)) {
@@ -128,6 +135,27 @@ export default function App() {
       });
   }, [data]);
 
+  const dynamicCol1Suggestions = useMemo(() => {
+    const getTabSuggestions = (tabData: InventoryRow[]) => {
+      const set = new Set<string>();
+      tabData.forEach(row => {
+        if (row.col1) {
+          row.col1.split(',').forEach(item => {
+            const trimmed = item.trim();
+            if (trimmed) set.add(trimmed);
+          });
+        }
+      });
+      return Array.from(set).sort((a, b) => a.localeCompare(b));
+    };
+
+    return {
+      resentments: getTabSuggestions(data.resentments),
+      fears: getTabSuggestions(data.fears),
+      harms: getTabSuggestions(data.harms),
+    };
+  }, [data]);
+
   const filteredSummary = useMemo(() => {
     if (!searchQuery.trim()) return groupedData;
     const lowerQuery = searchQuery.toLowerCase();
@@ -147,14 +175,14 @@ export default function App() {
 
     const currentVal = (row[field as keyof InventoryRow] || '') as string;
     const items = currentVal.split(',').map(i => i.trim()).filter(Boolean);
-    
+
     let newVal;
     if (items.includes(suggestion)) {
       newVal = items.filter(i => i !== suggestion).join(', ');
     } else {
       newVal = [...items, suggestion].join(', ');
     }
-    
+
     updateCell(tab, rowId, field, newVal);
   };
 
@@ -168,7 +196,7 @@ export default function App() {
   };
 
   const duplicateRow = (tab: InventoryCategory, row: InventoryRow) => {
-    const newRow: InventoryRow = { 
+    const newRow: InventoryRow = {
       id: Date.now(),
       col1: row.col1, // Keep the entity (person/institution)
       col2: '',       // Clear everything else for a fresh entry for the same person
@@ -197,7 +225,7 @@ export default function App() {
     const cat = activeTab === 'summary' || activeTab === 'fifth-step' ? 'resentments' : activeTab;
     const tabData = data[cat as InventoryCategory];
     const tabCols = INVENTORY_CONFIG[cat as InventoryCategory].cols;
-    
+
     const headerRow = tabCols.map(c => c.header).join('\t');
     const dataRows = tabData.map(row => {
       return tabCols.map(c => {
@@ -206,9 +234,9 @@ export default function App() {
         return val;
       }).join('\t');
     }).join('\n');
-    
+
     const tsv = `${headerRow}\n${dataRows}`;
-    
+
     try {
       await navigator.clipboard.writeText(tsv);
       toast({
@@ -238,8 +266,16 @@ export default function App() {
     reader.onload = (e) => {
       try {
         const imported = JSON.parse(e.target?.result as string);
-        setData(imported);
-        toast({ title: "Success", description: "Your backup has been loaded successfully." });
+
+        // Basic validation to prevent crashes
+        const validated: InventoryData = {
+          resentments: Array.isArray(imported.resentments) ? imported.resentments : [],
+          fears: Array.isArray(imported.fears) ? imported.fears : [],
+          harms: Array.isArray(imported.harms) ? imported.harms : []
+        };
+
+        setData(validated);
+        toast({ title: "Success", description: "Your data has been loaded successfully." });
       } catch (err) {
         toast({ variant: "destructive", title: "Error", description: "Invalid backup file format." });
       }
@@ -256,9 +292,17 @@ export default function App() {
 
     const rows = lines.map((line, idx) => {
       const values = line.split(separator).map(v => v.trim().replace(/^"(.*)"$/, '$1'));
-      const row: InventoryRow = { id: Date.now() + idx };
+      const row: InventoryRow = {
+        id: Date.now() + idx,
+        col1: '',
+        col2: '',
+        col3: '',
+        col4: ''
+      };
+
       INVENTORY_CONFIG[activeTab as InventoryCategory].cols.forEach((col, i) => {
-        row[col.key as keyof InventoryRow] = values[i] || '';
+        const key = col.key as keyof InventoryRow;
+        (row as any)[key] = values[i] || '';
       });
       return row;
     });
@@ -278,8 +322,8 @@ export default function App() {
   if (isFifthStepMode) {
     return (
       <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-        <FifthStepViewer 
-          data={data} 
+        <FifthStepViewer
+          data={data}
           onUpdateNote={(cat, id, note) => updateCell(cat, id, 'fifthStepNotes', note)}
           onClose={() => setIsFifthStepMode(false)}
         />
@@ -292,7 +336,7 @@ export default function App() {
     <TooltipProvider>
       <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-7xl mx-auto space-y-8">
-          
+
           <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-200 pb-8">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
@@ -307,10 +351,10 @@ export default function App() {
                 A secure worksheet for your 4th step moral inventory. Your data stays in your browser.
               </p>
             </div>
-            
+
             <div className="flex flex-wrap gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => document.getElementById('import-json')?.click()}
                 className="gap-2 border-slate-200 hover:bg-white"
               >
@@ -318,8 +362,8 @@ export default function App() {
                 Full Import
                 <input id="import-json" type="file" className="hidden" accept=".json" onChange={handleImportBackup} />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={handleExportBackup}
                 className="gap-2 border-slate-200 hover:bg-white"
               >
@@ -327,7 +371,7 @@ export default function App() {
                 Full Backup
               </Button>
               <div className="h-10 w-px bg-slate-200 mx-2 hidden sm:block" />
-              <Button 
+              <Button
                 variant="secondary"
                 onClick={() => setIsPasteDialogOpen(true)}
                 className="gap-2 shadow-sm border border-slate-200"
@@ -336,7 +380,7 @@ export default function App() {
                 <ClipboardPaste className="w-4 h-4" />
                 Paste Data
               </Button>
-              <Button 
+              <Button
                 onClick={handleCopyTSV}
                 className="gap-2 shadow-sm"
                 disabled={activeTab === 'summary'}
@@ -365,7 +409,7 @@ export default function App() {
                 </TabsTrigger>
               </TabsList>
 
-              <Button 
+              <Button
                 onClick={() => setIsFifthStepMode(true)}
                 className="gap-2 bg-slate-900 hover:bg-black text-white rounded-xl shadow-xl shadow-slate-900/10 px-6"
               >
@@ -382,8 +426,8 @@ export default function App() {
                 </div>
                 <div className="relative w-full md:w-80">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input 
-                    placeholder="Search people/institutions..." 
+                  <Input
+                    placeholder="Search people/institutions..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9 bg-white border-slate-200 rounded-xl focus:ring-primary/20"
@@ -425,8 +469,8 @@ export default function App() {
                         </div>
 
                         <div className="space-y-3 pt-2">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             className="w-full justify-between text-xs font-bold uppercase tracking-widest text-primary hover:bg-primary/5 px-3"
                             onClick={() => {
                               setSearchQuery(entity.name);
@@ -482,49 +526,57 @@ export default function App() {
                       <tbody className="divide-y divide-slate-100">
                         {data[cat as InventoryCategory].map((row) => (
                           <tr key={row.id} className="hover:bg-slate-50/30 group transition-colors">
-                            {INVENTORY_CONFIG[cat as InventoryCategory].cols.map((col) => (
-                              <td key={col.key} className="p-0 border-r border-slate-100/50 last:border-r-0 align-top group/cell relative">
-                                <textarea
-                                  value={(row[col.key as keyof InventoryRow] || '') as string}
-                                  onChange={(e) => updateCell(cat as InventoryCategory, row.id, col.key, e.target.value)}
-                                  placeholder={col.placeholder}
-                                  className="w-full min-h-[160px] p-5 bg-transparent resize-y outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5 text-sm text-slate-700 placeholder:text-slate-400 font-medium leading-relaxed transition-all pb-10"
-                                />
-                                
-                                {col.suggestions && (
-                                  <div className="absolute bottom-2 left-2 flex gap-1 items-center">
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-primary rounded-full">
-                                          <Tag className="h-3 w-3" />
-                                        </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-64 p-3 rounded-xl shadow-2xl border-slate-200" align="start">
-                                        <div className="space-y-2">
-                                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Quick Picks</p>
-                                          <div className="flex flex-wrap gap-1.5">
-                                            {col.suggestions.map((suggestion) => {
-                                              const isActive = ((row[col.key as keyof InventoryRow] || '') as string).includes(suggestion);
-                                              return (
-                                                <Badge
-                                                  key={suggestion}
-                                                  variant={isActive ? "default" : "outline"}
-                                                  className={`cursor-pointer px-2 py-0.5 text-[10px] transition-all hover:scale-105 ${isActive ? 'bg-primary' : 'hover:bg-slate-50'}`}
-                                                  onClick={() => toggleSuggestion(cat as InventoryCategory, row.id, col.key, suggestion)}
-                                                >
-                                                  {suggestion}
-                                                </Badge>
-                                              );
-                                            })}
+                            {INVENTORY_CONFIG[cat as InventoryCategory].cols.map((col) => {
+                              const isCol1 = col.key === 'col1';
+                              const combinedSuggestions = isCol1
+                                ? Array.from(new Set([...(col.suggestions || []), ...dynamicCol1Suggestions[cat as InventoryCategory]])).sort()
+                                : col.suggestions;
+
+                              return (
+                                <td key={col.key} className="p-0 border-r border-slate-100/50 last:border-r-0 align-top group/cell relative">
+                                  <textarea
+                                    value={(row[col.key as keyof InventoryRow] || '') as string}
+                                    onChange={(e) => updateCell(cat as InventoryCategory, row.id, col.key, e.target.value)}
+                                    placeholder={col.placeholder}
+                                    className="w-full min-h-[160px] p-5 bg-transparent resize-y outline-none focus:ring-2 focus:ring-primary/20 focus:bg-primary/5 text-sm text-slate-700 placeholder:text-slate-400 font-medium leading-relaxed transition-all pb-10"
+                                  />
+
+                                  {combinedSuggestions && combinedSuggestions.length > 0 && (
+                                    <div className="absolute bottom-2 left-2 flex gap-1 items-center">
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-primary rounded-full">
+                                            <Tag className="h-3 w-3" />
+                                          </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-64 p-3 rounded-xl shadow-2xl border-slate-200" align="start">
+                                          <div className="space-y-2">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Quick Picks</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                              {combinedSuggestions.map((suggestion) => {
+                                                const currentVal = (row[col.key as keyof InventoryRow] || '') as string;
+                                                const isActive = currentVal.split(',').map(s => s.trim()).includes(suggestion);
+                                                return (
+                                                  <Badge
+                                                    key={suggestion}
+                                                    variant={isActive ? "default" : "outline"}
+                                                    className={`cursor-pointer px-2 py-0.5 text-[10px] transition-all hover:scale-105 ${isActive ? 'bg-primary' : 'hover:bg-slate-50'}`}
+                                                    onClick={() => toggleSuggestion(cat as InventoryCategory, row.id, col.key, suggestion)}
+                                                  >
+                                                    {suggestion}
+                                                  </Badge>
+                                                );
+                                              })}
+                                            </div>
                                           </div>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Suggestions</span>
-                                  </div>
-                                )}
-                              </td>
-                            ))}
+                                        </PopoverContent>
+                                      </Popover>
+                                      <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">Suggestions</span>
+                                    </div>
+                                  )}
+                                </td>
+                              )
+                            })}
                             <td className="px-4 py-6 align-top">
                               <div className="flex items-center justify-center gap-1">
                                 <Tooltip>
@@ -582,7 +634,7 @@ export default function App() {
                       </tbody>
                     </table>
                   </div>
-                  
+
                   <div className="p-6 bg-slate-50/50 border-t border-slate-200">
                     <Button
                       variant="outline"
@@ -627,8 +679,8 @@ export default function App() {
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
-              <Textarea 
-                placeholder="Paste your TSV or CSV data here..." 
+              <Textarea
+                placeholder="Paste your TSV or CSV data here..."
                 className="min-h-[300px] font-mono text-xs rounded-xl"
                 value={pastedContent}
                 onChange={(e) => setPastedContent(e.target.value)}
