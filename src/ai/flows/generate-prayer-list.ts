@@ -9,6 +9,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {headers} from 'next/headers';
+import {checkRateLimit} from '@/lib/rate-limit';
 
 const GeneratePrayerListInputSchema = z.object({
   inventory: z.any().describe('The full inventory data object containing resentments, fears, and harms.'),
@@ -21,6 +23,11 @@ const GeneratePrayerListOutputSchema = z.object({
 export type GeneratePrayerListOutput = z.infer<typeof GeneratePrayerListOutputSchema>;
 
 export async function generatePrayerList(input: GeneratePrayerListInput): Promise<GeneratePrayerListOutput> {
+  const headersList = await headers();
+  // Security Note: This app is local-first with no backend user accounts.
+  // Rate limiting is used as a mitigation against abuse in lieu of authentication.
+  const ip = headersList.get('x-forwarded-for') || 'unknown';
+  checkRateLimit(ip);
   return generatePrayerListFlow(input);
 }
 
